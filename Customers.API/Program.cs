@@ -1,6 +1,7 @@
+using Serilog;
+using Customers.API.Options;
 using Customers.API.Entities;
 using Customers.API.Extensions;
-using Customers.API.Options;
 using Customers.API.Repository;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.OpenApi.Models;
@@ -9,6 +10,8 @@ var builder = WebApplication.CreateBuilder(new WebApplicationOptions
 {
     EnvironmentName = Environments.Development
 });
+
+builder.Host.UseSerilog(Logging.ConfigureLogger);
 
 // Add services to the container.
 builder.Services.Configure<DatabaseSettings>(builder.Configuration.GetSection("DatabaseSettings"));
@@ -36,7 +39,7 @@ builder.Services.AddSwaggerGen(c =>
     {
         Title = "Customers API",
         Version = $"v1",
-        Description = "Monitoring, health checks and error tracking in a simple Book API.",
+        Description = "Customers api example using MongoDB.",
         Contact = new OpenApiContact
         {
             Name = "José Matoso",
@@ -46,9 +49,9 @@ builder.Services.AddSwaggerGen(c =>
         License = new OpenApiLicense
         {
             Name = "MIT License",
-            Url = new Uri("https://github.com/JMatoso/Booking/blob/master/LICENSE.txt")
+            Url = new Uri("https://github.com/JMatoso/MongoExample/blob/master/LICENSE.txt")
         },
-        TermsOfService = new Uri("https://github.com/JMatoso/Booking")
+        TermsOfService = new Uri("https://github.com/JMatoso/MongoExample")
     });
 
     var xmlFile = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
