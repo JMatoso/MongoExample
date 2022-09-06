@@ -1,36 +1,44 @@
-﻿using Customers.API.Entities;
+﻿using MongoDB.Driver;
 using Customers.API.Options;
 using Microsoft.Extensions.Options;
-using MongoDB.Driver;
+using System.Linq.Expressions;
 
-namespace Customers.API.Repository
+namespace Customers.API.Repository;
+
+public class MockEntity<TEntity> : IMockEntity<TEntity> where TEntity : class
 {
-    public class MockEntity
+    private readonly IMongoCollection<TEntity> _collection;
+
+    public MockEntity(IOptions<DatabaseSettings> databaseSettings)
     {
-        private readonly IMongoCollection<Customer> _customersCollection;
+        var mongoClient = new MongoClient(databaseSettings.Value.ConnectionString);
 
-        public MockEntity(IOptions<CustomersDatabaseSettings> databaseSettings)
-        {
-            var mongoClient = new MongoClient(databaseSettings.Value.ConnectionString);
+        var mongoDatabase = mongoClient.GetDatabase(databaseSettings.Value.DatabaseName);
 
-            var mongoDatabase = mongoClient.GetDatabase(databaseSettings.Value.DatabaseName);
+        _collection = mongoDatabase.GetCollection<TEntity>(databaseSettings.Value.CollectionName);
+    }
 
-            _customersCollection = mongoDatabase.GetCollection<Customer>(databaseSettings.Value.CollectionName);
-        }
+    public async Task<IEnumerable<TEntity>> GetAsync() =>
+        await _collection.Find(_ => true).ToListAsync();
 
-        public async Task<IEnumerable<Customer>> GetAsync() =>
-            await _customersCollection.Find(_ => true).ToListAsync();
+    public async Task<TEntity?> GetAsync(Expression<Func<TEntity, bool>> expression) =>
+        await _collection.Find(expression).FirstOrDefaultAsync();
 
-        public async Task<Customer?> GetAsync(Guid id) =>
-            await _customersCollection.Find(x => x.Id == id).FirstOrDefaultAsync();
+    public async Task CreateAsync(params TEntity[] newEntities) =>
+        await _collection.InsertManyAsync(newEntities);
 
-        public async Task CreateAsync(params Customer[] newCustomers) =>
-            await _customersCollection.InsertManyAsync(newCustomers);
+    public async Task<bool> UpdateAsync(Expression<Func<TEntity, bool>> expression, TEntity updateCustomer)
+    {
+        var updateResult = await _collection.ReplaceOneAsync(expression, updateCustomer);
 
-        public async Task UpdateAsync(Guid id, Customer updateCustomer) =>
-            await _customersCollection.ReplaceOneAsync(x => x.Id == id, updateCustomer);
+        return updateResult.IsAcknowledged && updateResult.ModifiedCount > 0;
+    }
 
-        public async Task RemoveAsync(Guid id) =>
-            await _customersCollection.DeleteOneAsync(x => x.Id == id);
+
+    public async Task<bool> RemoveAsync(Expression<Func<TEntity, bool>> expression)
+    {
+        var deleteResult = await _collection.DeleteOneAsync(expression);
+
+        return deleteResult.IsAcknowledged && deleteResult.DeletedCount > 0;
     }
 }
